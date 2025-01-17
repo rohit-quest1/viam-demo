@@ -18,8 +18,8 @@ async def main():
     print('Resources:')
     print(machine.resource_names)
     
-    camera_1 = Camera.from_robot(machine, "camera-1")
-    vision_1 = VisionClient.from_robot(machine, "vision-1")
+    camera_1 = Camera.from_robot(machine, "camera-1") # Replace with your own component name
+    vision_1 = VisionClient.from_robot(machine, "vision-1") # Replace with your own service name
     
     try:
         while True:
