@@ -10,7 +10,7 @@ async def connect():
         api_key='VIAM_API_KEY',
         api_key_id='VIAM_API_KEY_ID'
     )
-    return await RobotClient.at_address('mylaptop-main.5v3r0ehp5p.viam.cloud', opts)
+    return await RobotClient.at_address('YOUR_MACHINE_ADDRESS', opts)
 
 async def main():
     machine = await connect()
