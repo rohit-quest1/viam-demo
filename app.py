@@ -7,8 +7,8 @@ from viam.services.vision import VisionClient
 
 async def connect():
     opts = RobotClient.Options.with_api_key( 
-        api_key='69bbi2ti94asqlsrjfklutgfdlyubi41',
-        api_key_id='fe348cc0-4aa0-4654-84d4-826cf0632e4b'
+        api_key='VIAM_API_KEY',
+        api_key_id='VIAM_API_KEY_ID'
     )
     return await RobotClient.at_address('mylaptop-main.5v3r0ehp5p.viam.cloud', opts)
 
