@@ -9,8 +9,10 @@ from viam.services.mlmodel import MLModelClient
 from PIL import Image
 from io import BytesIO
 import pytesseract
-
+import cv2
+import imutils
 import numpy as np
+import matplotlib.pyplot as plt
 from viam.media.video import CameraMimeType
 
 async def connect():
@@ -29,7 +31,7 @@ async def main():
     # camera-1
     camera_1 = Camera.from_robot(machine, "camera-1")
     mlmodel_1 = MLModelClient.from_robot(machine, "mlmodel-1")
-    vision_2 = VisionClient.from_robot(machine, "vision-1")
+    vision_2 = VisionClient.from_robot(machine, "vision-2")
 
     try:
         while True:
@@ -78,16 +80,42 @@ async def main():
                             
                             # Save the cropped image locally
                             cropped_image.save('cropped_image.png')
-                            text = pytesseract.image_to_string(cropped_image)
+                            preprocessing('cropped_image.png')
+                            
+                            text = pytesseract.image_to_string('preprocessed_image.png')
                             print(f"OCR Text: {text}")
 
             await asyncio.sleep(5)
-
-      
     except KeyboardInterrupt:
         print("\nStopping detection...")
     finally:
         await machine.close()
+        
+def preprocessing(impath):
+    img = cv2.imread(impath)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    bfilter = cv2.bilateralFilter(gray, 11, 17, 17) 
+    edged = cv2.Canny(bfilter, 30, 200) 
+    keypoints = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = imutils.grab_contours(keypoints) 
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
+    
+    location = None
+    for contour in contours:
+        approx = cv2.approxPolyDP(contour, 10, True)
+        if len(approx) == 4:
+            location = approx
+            break
+    mask = np.zeros(gray.shape, np.uint8) 
+    new_image = cv2.drawContours(mask, [location], 0,255, -1) 
+    new_image = cv2.bitwise_and(img, img, mask=mask) 
+    
+    (x,y) = np.where(mask==255) 
+    (x1, y1) = (np.min(x), np.min(y)) 
+    (x2, y2) = (np.max(x), np.max(y)) 
+    cropped_image = gray[x1:x2+1, y1:y2+1] 
+    plt.imsave('preprocessed_image.png',cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB))
+    
 
 if __name__ == '__main__':
     asyncio.run(main())

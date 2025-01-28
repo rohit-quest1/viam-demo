@@ -1,0 +1,4 @@
+numpy
+packaging
+pillow
+opencv-python

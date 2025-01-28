@@ -14,3 +14,4 @@ pip3 install viam-sdk
 ```
 python app.py
 ```
+# viam-demo
