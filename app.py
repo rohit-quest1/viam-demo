@@ -16,12 +16,11 @@ import numpy as np
 from PIL import Image, ImageEnhance
 from viam.media.video import CameraMimeType
 import cv2
-
+from dotenv import load_dotenv
+load_dotenv()
 async def ocr():
-    global temp, poo
-    poo = ""
-    subscription_key = "99af4001b4234f5ab00ffd81f5537c4a"
-    endpoint = "https://tnphocr.cognitiveservices.azure.com/"
+    subscription_key = os.getenv("AZURE_SUB_KEY")
+    endpoint = os.getenv("AZURE_ENDPOINT")
 
     computervision_client = ComputerVisionClient(
         endpoint, CognitiveServicesCredentials(subscription_key))
@@ -201,7 +200,7 @@ async def main():
                         print("Image saved, attempting OCR...")
 
                         # Uncomment when needed
-                        # await ocr()
+                        await ocr()
                         await color_det()
 
             await asyncio.sleep(5)
