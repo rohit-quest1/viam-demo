@@ -12,6 +12,7 @@ __pycache__/
 *.out
 *.err
 
+.env
 # OS generated files
 .DS_Store
 Thumbs.db
