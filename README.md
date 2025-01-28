@@ -1,6 +1,4 @@
-# Viam Python Example
-
-This repo contains an example code to test out the python viam sdk.
+# viam-demo
 
 ## Setup
 - Get your Viam API key, the key id and the Machine address (URI) from the platform and replace them in the code.
@@ -14,4 +12,4 @@ pip3 install viam-sdk
 ```
 python app.py
 ```
-# viam-demo
+
