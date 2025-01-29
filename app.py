@@ -18,9 +18,17 @@ from viam.media.video import CameraMimeType
 import cv2
 from dotenv import load_dotenv
 load_dotenv()
+
+AZURE_SUB_KEY=os.getenv("AZURE_SUB_KEY")
+AZURE_ENDPOINT=os.getenv("AZURE_ENDPOINT")
+VIAM_API_KEY=os.getenv("VIAM_API_KEY")
+VIAM_API_KEY_ID=os.getenv("VIAM_API_KEY_ID")
+VIAM_MACHINE_ID=os.getenv("VIAM_MACHINE_ID")
+SLEEP_TIMER=os.getenv("SLEEP_TIMER")
+
 async def ocr():
-    subscription_key = os.getenv("AZURE_SUB_KEY")
-    endpoint = os.getenv("AZURE_ENDPOINT")
+    subscription_key = AZURE_SUB_KEY
+    endpoint = AZURE_ENDPOINT
 
     computervision_client = ComputerVisionClient(
         endpoint, CognitiveServicesCredentials(subscription_key))
@@ -112,11 +120,10 @@ async def color_det():
 
 async def connect():
     opts = RobotClient.Options.with_api_key( 
-        api_key='69bbi2ti94asqlsrjfklutgfdlyubi41',
-        api_key_id='fe348cc0-4aa0-4654-84d4-826cf0632e4b'
+        api_key=VIAM_API_KEY,
+        api_key_id=VIAM_API_KEY_ID
     )
-    return await RobotClient.at_address('mylaptop-main.5v3r0ehp5p.viam.cloud', opts)
-
+    return await RobotClient.at_address(VIAM_MACHINE_ID, opts)
 
 
 async def main():
@@ -203,7 +210,7 @@ async def main():
                         await ocr()
                         await color_det()
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(int(SLEEP_TIMER))
 
     except KeyboardInterrupt:
         print("\nStopping detection...")
