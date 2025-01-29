@@ -1,6 +1,8 @@
 # Ignore virtual environment
-venv/
+.venv/
 .env/
+images/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -37,3 +39,4 @@ htmlcov/
 dist/
 build/
 *.wheel
+

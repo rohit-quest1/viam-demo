@@ -16,27 +16,62 @@ import numpy as np
 from PIL import Image, ImageEnhance
 from viam.media.video import CameraMimeType
 import cv2
+import boto3
+import os
+import random
+import datetime
+import uuid
+import json
+import aiofiles
+from botocore.exceptions import NoCredentialsError
+from serpapi import GoogleSearch
+from viam_uploader import upload_data
+from mail import send_alert_email
+
 from dotenv import load_dotenv
 load_dotenv()
-async def ocr():
-    subscription_key = os.getenv("AZURE_SUB_KEY")
-    endpoint = os.getenv("AZURE_ENDPOINT")
 
+
+AWS_BUCKET_NAME=os.getenv('S3_AWS_BUCKET_NAME')
+AWS_ACCESS_KEY=os.getenv('S3_AWS_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY=  os.getenv('S3_AWS_SECRET_ACCESS_KEY')
+SERPAPI_KEY = os.getenv('SERPAPI_KEY')
+AZURE_SUB_KEY = os.getenv("AZURE_SUB_KEY")
+AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
+
+try:
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+except Exception as e:
+    print(f"Error initializing S3 client: {e}")
+    raise
+
+
+with open('data.json','r') as f:
+    data = json.load(f)
+       
+with open('corpus.json','r') as f:
+    corpus_data = json.load(f)
+    
+async def ocr(fpath):
     computervision_client = ComputerVisionClient(
-        endpoint, CognitiveServicesCredentials(subscription_key))
+        AZURE_ENDPOINT, CognitiveServicesCredentials(AZURE_SUB_KEY))
 
     try:
         # Verify the image exists
-        if not os.path.exists('cropped_image.png'):
-            print("Error: cropped_image.png not found")
+        if not os.path.exists(fpath):
+            print(f"Error:{fpath} not found")
             return
 
         # Print image size for debugging
-        image_size = os.path.getsize('cropped_image.png')
+        image_size = os.path.getsize(fpath)
         print(f"Image size: {image_size} bytes")
 
         # Read the image file and create BytesIO object
-        with open('cropped_image.png', 'rb') as image_file:
+        with open(fpath, 'rb') as image_file:
             image_data = BytesIO(image_file.read())
             
         # Analyze the image first to confirm it's readable
@@ -68,9 +103,11 @@ async def ocr():
             await asyncio.sleep(1)
 
         if read_result.status == OperationStatusCodes.succeeded:
+            print(f"TEXT : {[text_result.lines for text_result in read_result.analyze_result.read_results]}")
             for text_result in read_result.analyze_result.read_results:
                 for line in text_result.lines:
-                    print(f"Detected line: {line.text}")
+                    return line.text.strip()
+                
         else:
             print(f"OCR operation failed with status: {read_result.status}")
             
@@ -78,9 +115,7 @@ async def ocr():
         print(f"Error in OCR processing: {str(e)}")
         raise
 
-
-
-async def color_det():
+async def color_det(fpath):
     global final_col
     car_img = cv2.imread('original_image.png')
 
@@ -106,18 +141,120 @@ async def color_det():
         a[color_name] = pixel_count
     final_col = max(a, key=a.get)
     print("Color of Original Image: ",final_col)
-    return (final_col)
+    return final_col
 
+async def generate_unique_geo_filename(prefix='image', extension='png'):
+    """
+        Filename format: prefix_TIMESTAMP_LAT_LON_UUID.extension
+    """
+    latitude = random.uniform(-90, 90)
+    longitude = random.uniform(-180, 180)
+    
+    lat_dir = 'N' if latitude >= 0 else 'S'
+    lon_dir = 'E' if longitude >= 0 else 'W'
+    lat_str = f"{abs(latitude):.6f}".replace('.', '_') + lat_dir
+    lon_str = f"{abs(longitude):.6f}".replace('.', '_') + lon_dir
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    
+    unique_id = uuid.uuid4().hex[:8]
+    
+    return f"images/{prefix}_{timestamp}_{lat_str}_{lon_str}_{unique_id}.{extension.lstrip('.')}"
 
+async def get_s3_url(fpath):
+    """Uploads file to S3 and returns public URL"""
+    image_url = None
+    try:
+        # Upload the file
+        s3.upload_file(
+            fpath,
+            AWS_BUCKET_NAME,
+            fpath,
+            ExtraArgs={
+                'ContentType': 'image/png',
+                'ACL': 'public-read',
+                'ContentDisposition': 'inline' 
+            }
+        )
+        
+        # Construct URL using bucket's region
+        location = s3.get_bucket_location(Bucket=AWS_BUCKET_NAME)['LocationConstraint']
+        region = location if location else 'us-east-1'
+        image_url = f"https://{AWS_BUCKET_NAME}.s3.{region}.amazonaws.com/{fpath}"
+        
+    except FileNotFoundError:
+        print(f"Error: File {fpath} not found")
+    except Exception as e:
+        print(f"Error uploading to S3: {e}")
+    
+    return image_url
 
+async def extract_model(fpath):
+    global car_type
+    
+    car_type = None
+    image_url = await get_s3_url(fpath)
+    params = {
+        "engine": "google_reverse_image",
+        "image_url": image_url,  
+        "api_key": SERPAPI_KEY 
+    }
+    print("API Parameters:", params)
+
+    # try:
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    print(results)
+    await asyncio.sleep(3)
+    
+    car_type = results["knowledge_graph"]["title"]
+    print("The model of the car from the given image is ",car_type)
+    return car_type,image_url
+    # except Exception as e:
+    #     print(f"SerpAPI Error: {e}")
+
+async def write_json_async(data):
+    async with aiofiles.open('data.json', 'w') as f:
+        await f.write(json.dumps(data))
+        
 async def connect():
+    
     opts = RobotClient.Options.with_api_key( 
-        api_key='69bbi2ti94asqlsrjfklutgfdlyubi41',
-        api_key_id='fe348cc0-4aa0-4654-84d4-826cf0632e4b'
+        api_key= os.getenv('VIAM_API_KEY'),
+        api_key_id= os.getenv('VIAM_API_KEY_ID')
     )
-    return await RobotClient.at_address('mylaptop-main.5v3r0ehp5p.viam.cloud', opts)
+    return await RobotClient.at_address('demo-mac-main.fnhngyx1au.viam.cloud', opts)
 
-
+async def compare_vehicle_data(predicted):
+    # flag = False  # Flag to indicate mismatch
+    # discrepancies = {}
+    
+    # if corpus_data["vehicle_number"] != predicted["vehicle_number"]:
+    #     discrepancies["vehicle_number"] = {
+    #         "actual": corpus_data["vehicle_number"],
+    #         "predicted": predicted["vehicle_number"]
+    #     }
+    #     flag = True
+        
+    # # Compare actual vs expected parameters
+    # actual_params = corpus_data.get("actual_params", {})
+    # expected_params = predicted.get("expected_params", {})
+    
+    # for key in ["model", "colour"]:
+    #     actual_value = actual_params.get(key)
+    #     predicted_value = expected_params.get("make" if key == "model" else key)
+        
+    #     if actual_value != predicted_value:
+    #         discrepancies[key] = {
+    #             "actual": actual_value,
+    #             "predicted": predicted_value
+    #         }
+    #         flag = True 
+    print("CORPUS :",corpus_data.keys(),"v_no :",predicted['vehicle_number'].strip())
+    if predicted['vehicle_number'].strip() in corpus_data.keys():
+        return False
+    else:
+        return True
 
 async def main():
     machine = await connect()
@@ -148,7 +285,8 @@ async def main():
                         
                         standard_frame = camera_1_return_value.data
                         image = Image.open(BytesIO(standard_frame))
-                        image.save('original_image.png', 'PNG', quality=100)
+                        fname = await generate_unique_geo_filename(prefix="og_img")
+                        image.save(fname, 'PNG', quality=100)
                         
                         # Get original image dimensions
                         width, height = image.size
@@ -166,6 +304,14 @@ async def main():
                         y_min = max(0, int(detection.y_min - padding_y))
                         x_max = min(width, int(detection.x_max + padding_x))
                         y_max = min(height, int(detection.y_max + padding_y))
+                        
+                        rv_cropped_image = image.crop(
+                            (max(0, int(detection.x_min - max(int(box_width * 0.5), 50))),
+                                max(0, int(detection.y_min - max(int(box_height * 0.5), 50))),
+                                min(width, int(detection.x_max + max(int(box_width * 0.5), 50))),
+                                min(height, int(detection.y_max + max(int(box_height * 0.5), 50)))
+                                )
+                        )
                         
                         # Crop the image
                         cropped_image = image.crop((x_min, y_min, x_max, y_max))
@@ -187,24 +333,81 @@ async def main():
                         enhancer = ImageEnhance.Contrast(cropped_image)
                         cropped_image = enhancer.enhance(1.5)
                         
+                        enhancer = ImageEnhance.Contrast(rv_cropped_image)
+                        rv_cropped_image = enhancer.enhance(1.5)
+                        
                         enhancer = ImageEnhance.Sharpness(cropped_image)
                         cropped_image = enhancer.enhance(1.5)
+                        
+                        enhancer = ImageEnhance.Sharpness(rv_cropped_image)
+                        rv_cropped_image = enhancer.enhance(1.5)
                         
                         # Convert to RGB if not already
                         if cropped_image.mode != 'RGB':
                             cropped_image = cropped_image.convert('RGB')
                         
+                        if rv_cropped_image.mode!= 'RGB':
+                            rv_cropped_image = rv_cropped_image.convert('RGB') 
+                            
                         # Save with high quality
-                        cropped_image.save('cropped_image.png', 'PNG', quality=100)
-                        
+                        cropped_image.save(fname.replace("og_img","crp_img"), 'PNG', quality=100)
+                        # rv_cropped_image.save(fname.replace("og_img","only_car"),'PNG',quality=100)
                         print("Image saved, attempting OCR...")
 
                         # Uncomment when needed
-                        await ocr()
-                        await color_det()
+                        license_plate_text = await ocr(fname.replace("og_img","crp_img"))
+                        # car_color = await color_det(fname)
+                        # car_model,image_url = await extract_model(fname)
+                        car_color = "green"
+                        car_model = "SUV"
+                        
+                        location = s3.get_bucket_location(Bucket=AWS_BUCKET_NAME)['LocationConstraint']
+                        region = location if location else 'us-east-1'
+                        image_url = f"https://{AWS_BUCKET_NAME}.s3.{region}.amazonaws.com/{fname}"
+                        
+                        license_plate_text = ''.join([char for char in license_plate_text if char.isalnum()])
+                        license_plate_text = license_plate_text.strip()
+                        license_plate_text = license_plate_text.upper()
+                        
+                        pred_data = {
+                            'vehicle_number':license_plate_text,
+                            'expected_params': {
+                                'make': car_model,
+                                'colour':car_color
+                            },
+                            'timestamp':datetime.datetime.strptime('_'.join(fname.split('_')[2:5]),"%Y%m%d_%H%M%S_%f")
+                        }
+                        
+                        mismatch_flag = await compare_vehicle_data(pred_data)
+                        new_data = data.copy()
+                        
+                        record = {
+                                'mismatch':mismatch_flag,
+                                'vehicle_number':license_plate_text,
+                                'expected_params': {
+                                    'make': car_model,
+                                    'colour':car_color
+                                },
+                                'image_url':image_url,
+                                'actual_params':corpus_data.get(license_plate_text),
+                                'timestamp':str(datetime.datetime.strptime('_'.join(fname.split('_')[2:5]),"%Y%m%d_%H%M%S_%f"))
+                        }
+                        if mismatch_flag:
+                            await upload_data(record)
+                            
+                            new_data.append(record)
 
+                            await write_json_async(new_data)
+
+                            await send_alert_email(record)
+                            
+                            
+                        
             await asyncio.sleep(5)
-
+            
+    except Exception as e:
+        print(e)
+        
     except KeyboardInterrupt:
         print("\nStopping detection...")
     finally:
