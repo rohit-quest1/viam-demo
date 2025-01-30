@@ -241,7 +241,10 @@ async def compare_vehicle_data(predicted):
 
 async def main():
     machine = await connect()
-
+    
+    if not os.path.exists('images'):
+        os.makedirs('images')
+        
     print('Resources:')
     print(machine.resource_names)
     
