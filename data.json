@@ -65,5 +65,61 @@
     "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250129_222055_582298_33_760365N_90_149232E_7d1a2147.png",
     "actual_params": null,
     "timestamp": "2025-01-29 22:20:55.582298"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "TN21AT0480",
+    "expected_params": { "make": "SUV", "colour": "green" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_104251_414360_33_128742N_48_544908W_d238f0de.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 10:42:51.414360"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "TN21AT0480",
+    "expected_params": { "make": "SUV", "colour": "green" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_104727_424932_14_688267N_12_543174W_6ad5e614.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 10:47:27.424932"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "TN21AT0480",
+    "expected_params": { "make": "SUV", "colour": "green" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_104811_801704_12_350383S_125_596587W_7261c431.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 10:48:11.801704"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "MH20EE7602",
+    "expected_params": { "make": "SUV", "colour": "green" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_110703_706268_86_788563N_66_597688E_e900ddc9.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 11:07:03.706268"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "MH20EE7602",
+    "expected_params": { "make": "Kia", "colour": "Blue" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_110929_948546_15_252186N_26_732820E_d529765f.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 11:09:29.948546"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "TN21AT24BD",
+    "expected_params": { "make": "Nissan", "colour": "Red" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_111640_703828_65_928583S_98_438295E_0553bb1b.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 11:16:40.703828"
+  },
+  {
+    "mismatch": true,
+    "vehicle_number": "MH46X9996",
+    "expected_params": { "make": "None", "colour": "Blue" },
+    "image_url": "https://cakeappbucket.s3.us-east-1.amazonaws.com/images/og_img_20250130_112658_052140_41_097716S_85_445536W_ecdc21cc.png",
+    "actual_params": null,
+    "timestamp": "2025-01-30 11:26:58.052140"
   }
 ]

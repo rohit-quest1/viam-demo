@@ -117,7 +117,7 @@ async def ocr(fpath):
 
 async def color_det(fpath):
     global final_col
-    car_img = cv2.imread('original_image.png')
+    car_img = cv2.imread(fpath)
 
     hsv_car = cv2.cvtColor(car_img, cv2.COLOR_BGR2HSV)
 
@@ -207,8 +207,14 @@ async def extract_model(fpath):
     print(results)
     await asyncio.sleep(3)
     
-    car_type = results["knowledge_graph"]["title"]
-    print("The model of the car from the given image is ",car_type)
+    try:
+        car_type = results["knowledge_graph"]["title"]
+        print("The model of the car from the given image is ",car_type)
+        
+    except:
+        car_type = "None"
+        print("Couldn't extract car model")
+        
     return car_type,image_url
     # except Exception as e:
     #     print(f"SerpAPI Error: {e}")
@@ -226,31 +232,8 @@ async def connect():
     return await RobotClient.at_address('demo-mac-main.fnhngyx1au.viam.cloud', opts)
 
 async def compare_vehicle_data(predicted):
-    # flag = False  # Flag to indicate mismatch
-    # discrepancies = {}
-    
-    # if corpus_data["vehicle_number"] != predicted["vehicle_number"]:
-    #     discrepancies["vehicle_number"] = {
-    #         "actual": corpus_data["vehicle_number"],
-    #         "predicted": predicted["vehicle_number"]
-    #     }
-    #     flag = True
-        
-    # # Compare actual vs expected parameters
-    # actual_params = corpus_data.get("actual_params", {})
-    # expected_params = predicted.get("expected_params", {})
-    
-    # for key in ["model", "colour"]:
-    #     actual_value = actual_params.get(key)
-    #     predicted_value = expected_params.get("make" if key == "model" else key)
-        
-    #     if actual_value != predicted_value:
-    #         discrepancies[key] = {
-    #             "actual": actual_value,
-    #             "predicted": predicted_value
-    #         }
-    #         flag = True 
-    print("CORPUS :",corpus_data.keys(),"v_no :",predicted['vehicle_number'].strip())
+
+    # print("CORPUS :",corpus_data.keys(),"v_no :",predicted['vehicle_number'].strip())
     if predicted['vehicle_number'].strip() in corpus_data.keys():
         return False
     else:
@@ -269,12 +252,15 @@ async def main():
         while True:
             camera_1_return_value = await camera_1.get_image()
             print(f"camera-1 get_image return value: {camera_1_return_value}")
-
-            detections = await vision_2.get_detections(camera_1_return_value)
-
+            
+            try:
+                detections = await vision_2.get_detections(camera_1_return_value)
+            except: 
+                continue
+            
             if detections:
                 for detection in detections:
-                    if detection.confidence > 0.75:
+                    if detection.confidence > 0.75 and detection.confidence < 1:
                         print(f"Detection confidence: {detection.confidence}")
                         print(f"x_min: {detection.x_min}")
                         print(f"y_min: {detection.y_min}")
@@ -331,16 +317,16 @@ async def main():
                         
                         # Enhance the image for better OCR
                         enhancer = ImageEnhance.Contrast(cropped_image)
-                        cropped_image = enhancer.enhance(1.5)
+                        cropped_image = enhancer.enhance(1.25)
                         
                         enhancer = ImageEnhance.Contrast(rv_cropped_image)
-                        rv_cropped_image = enhancer.enhance(1.5)
+                        rv_cropped_image = enhancer.enhance(1.25)
                         
                         enhancer = ImageEnhance.Sharpness(cropped_image)
-                        cropped_image = enhancer.enhance(1.5)
+                        cropped_image = enhancer.enhance(1.25)
                         
                         enhancer = ImageEnhance.Sharpness(rv_cropped_image)
-                        rv_cropped_image = enhancer.enhance(1.5)
+                        rv_cropped_image = enhancer.enhance(1.25)
                         
                         # Convert to RGB if not already
                         if cropped_image.mode != 'RGB':
@@ -356,52 +342,53 @@ async def main():
 
                         # Uncomment when needed
                         license_plate_text = await ocr(fname.replace("og_img","crp_img"))
-                        # car_color = await color_det(fname)
-                        # car_model,image_url = await extract_model(fname)
-                        car_color = "green"
-                        car_model = "SUV"
-                        
-                        location = s3.get_bucket_location(Bucket=AWS_BUCKET_NAME)['LocationConstraint']
-                        region = location if location else 'us-east-1'
-                        image_url = f"https://{AWS_BUCKET_NAME}.s3.{region}.amazonaws.com/{fname}"
-                        
-                        license_plate_text = ''.join([char for char in license_plate_text if char.isalnum()])
-                        license_plate_text = license_plate_text.strip()
-                        license_plate_text = license_plate_text.upper()
-                        
-                        pred_data = {
-                            'vehicle_number':license_plate_text,
-                            'expected_params': {
-                                'make': car_model,
-                                'colour':car_color
-                            },
-                            'timestamp':datetime.datetime.strptime('_'.join(fname.split('_')[2:5]),"%Y%m%d_%H%M%S_%f")
-                        }
-                        
-                        mismatch_flag = await compare_vehicle_data(pred_data)
-                        new_data = data.copy()
-                        
-                        record = {
-                                'mismatch':mismatch_flag,
+                        if license_plate_text:
+                            car_color = await color_det(fname)
+                            car_model,image_url = await extract_model(fname)
+                            # car_color = "green"
+                            # car_model = "SUV"
+                            
+                            location = s3.get_bucket_location(Bucket=AWS_BUCKET_NAME)['LocationConstraint']
+                            region = location if location else 'us-east-1'
+                            image_url = f"https://{AWS_BUCKET_NAME}.s3.{region}.amazonaws.com/{fname}"
+                            
+                            license_plate_text = ''.join([char for char in license_plate_text if char.isalnum()])
+                            license_plate_text = license_plate_text.strip()
+                            license_plate_text = license_plate_text.upper()
+                            
+                            pred_data = {
                                 'vehicle_number':license_plate_text,
                                 'expected_params': {
                                     'make': car_model,
                                     'colour':car_color
                                 },
-                                'image_url':image_url,
-                                'actual_params':corpus_data.get(license_plate_text),
-                                'timestamp':str(datetime.datetime.strptime('_'.join(fname.split('_')[2:5]),"%Y%m%d_%H%M%S_%f"))
-                        }
-                        if mismatch_flag:
-                            await upload_data(record)
+                                'timestamp':datetime.datetime.strptime('_'.join(fname.split('_')[2:5]),"%Y%m%d_%H%M%S_%f")
+                            }
                             
-                            new_data.append(record)
+                            mismatch_flag = await compare_vehicle_data(pred_data)
+                            new_data = data.copy()
+                            
+                            record = {
+                                    'mismatch':mismatch_flag,
+                                    'vehicle_number':license_plate_text,
+                                    'expected_params': {
+                                        'make': car_model,
+                                        'colour':car_color
+                                    },
+                                    'image_url':image_url,
+                                    'actual_params':corpus_data.get(license_plate_text),
+                                    'timestamp':str(datetime.datetime.strptime('_'.join(fname.split('_')[2:5]),"%Y%m%d_%H%M%S_%f"))
+                            }
+                            if mismatch_flag:
+                                await upload_data(record)
+                                
+                                new_data.append(record)
 
-                            await write_json_async(new_data)
+                                await write_json_async(new_data)
 
-                            await send_alert_email(record)
-                            
-                            
+                                await send_alert_email(record)
+                        else:
+                            print("No text detected")
                         
             await asyncio.sleep(5)
             

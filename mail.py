@@ -16,7 +16,7 @@ async def send_alert_email(record):
     AWS_REGION = os.getenv("AWS_REGION")  # e.g., 'us-east-1'
 
     SENDER = "ram@quest1.io"  
-    RECIPIENT = "suryak@quest1.io"  
+    RECIPIENT = "ram@quest1.io"  
 
     SUBJECT = "Vehicle Number Plate Mismatch Alert"
     BODY_TEXT = f"""
@@ -41,7 +41,7 @@ async def send_alert_email(record):
       <p><strong>Expected Colour:</strong> {record['expected_params']['colour']}</p>
       <p><strong>Actual Data:</strong> {record['actual_params']}</p>
       <p><strong>Timestamp:</strong> {record['timestamp']}</p>
-      <p><strong>Image:</strong> <br> <img src='{record['image_url']}' alt='Vehicle Image' width='500px'></p>
+      <p><strong>Image:</strong> <br> <img src='{record['image_url']}' alt='{record['image_url']}' width='500px'></p>
     </body>
     </html>
     """
