@@ -37,9 +37,8 @@ async def send_alert_email(record):
     <body>
       <h2>🚨 Vehicle Number Plate Mismatch Detected! 🚨</h2>
       <p><strong>Vehicle Number:</strong> {record['vehicle_number']}</p>
-      <p><strong>Expected Make:</strong> {record['expected_params']['make']}</p>
-      <p><strong>Expected Colour:</strong> {record['expected_params']['colour']}</p>
-      <p><strong>Actual Data:</strong> {record['actual_params']}</p>
+      <p><strong>Identified Make:</strong> {record['expected_params']['make']}</p>
+      <p><strong>Identified Colour:</strong> {record['expected_params']['colour']}</p>
       <p><strong>Timestamp:</strong> {record['timestamp']}</p>
       <p><strong>Image:</strong> <br> <img src='{record['image_url']}' alt='{record['image_url']}' width='500px'></p>
     </body>

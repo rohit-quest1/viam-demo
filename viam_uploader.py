@@ -25,7 +25,7 @@ async def upload_sensor_data(machine, sensor_data: dict):
         data_request_times=[(time_requested, time_received)],
         tabular_data=[{'readings': sensor_data}]
     )
-    print(f"Sensor data uploaded successfully! File ID: {file_id}")
+    print(f"Sensor data uploaded successfully!")
 
 async def upload_data(sensor_data: dict):
     """Utility method to connect and upload sensor data."""

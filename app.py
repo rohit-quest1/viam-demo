@@ -38,6 +38,9 @@ AWS_SECRET_ACCESS_KEY=  os.getenv('S3_AWS_SECRET_ACCESS_KEY')
 SERPAPI_KEY = os.getenv('SERPAPI_KEY')
 AZURE_SUB_KEY = os.getenv("AZURE_SUB_KEY")
 AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
+VIAM_API_KEY = os.getenv('VIAM_API_KEY')
+VIAM_API_KEY_ID = os.getenv('VIAM_API_KEY_ID')
+VIAM_MACHINE_ID = os.getenv('VIAM_MACHINE_ID')
 
 try:
     s3 = boto3.client(
@@ -66,9 +69,7 @@ async def ocr(fpath):
             print(f"Error:{fpath} not found")
             return
 
-        # Print image size for debugging
         image_size = os.path.getsize(fpath)
-        print(f"Image size: {image_size} bytes")
 
         # Read the image file and create BytesIO object
         with open(fpath, 'rb') as image_file:
@@ -80,7 +81,6 @@ async def ocr(fpath):
             image_data,
             visual_features=['Description']
         )
-        print("Image analysis succeeded, proceeding with OCR")
             
         # Reset buffer position and perform OCR
         image_data.seek(0)
@@ -103,7 +103,6 @@ async def ocr(fpath):
             await asyncio.sleep(1)
 
         if read_result.status == OperationStatusCodes.succeeded:
-            print(f"TEXT : {[text_result.lines for text_result in read_result.analyze_result.read_results]}")
             for text_result in read_result.analyze_result.read_results:
                 for line in text_result.lines:
                     return line.text.strip()
@@ -137,7 +136,6 @@ async def color_det(fpath):
     for color_name, color_range in color_ranges.items():
         mask = cv2.inRange(hsv_car, color_range[0], color_range[1])
         pixel_count = cv2.countNonZero(mask)
-        print(pixel_count)
         a[color_name] = pixel_count
     final_col = max(a, key=a.get)
     print("Color of Original Image: ",final_col)
@@ -199,13 +197,10 @@ async def extract_model(fpath):
         "image_url": image_url,  
         "api_key": SERPAPI_KEY 
     }
-    print("API Parameters:", params)
 
     # try:
     search = GoogleSearch(params)
     results = search.get_dict()
-    print(results)
-    await asyncio.sleep(3)
     
     try:
         car_type = results["knowledge_graph"]["title"]
@@ -226,14 +221,13 @@ async def write_json_async(data):
 async def connect():
     
     opts = RobotClient.Options.with_api_key( 
-        api_key= os.getenv('VIAM_API_KEY'),
-        api_key_id= os.getenv('VIAM_API_KEY_ID')
+        api_key = VIAM_API_KEY,
+        api_key_id = VIAM_API_KEY_ID 
     )
-    return await RobotClient.at_address('demo-mac-main.fnhngyx1au.viam.cloud', opts)
+    return await RobotClient.at_address(VIAM_MACHINE_ID, opts)
 
 async def compare_vehicle_data(predicted):
 
-    # print("CORPUS :",corpus_data.keys(),"v_no :",predicted['vehicle_number'].strip())
     if predicted['vehicle_number'].strip() in corpus_data.keys():
         return False
     else:
@@ -265,12 +259,6 @@ async def main():
                 for detection in detections:
                     if detection.confidence > 0.75 and detection.confidence < 1:
                         print(f"Detection confidence: {detection.confidence}")
-                        print(f"x_min: {detection.x_min}")
-                        print(f"y_min: {detection.y_min}")
-                        print(f"x_max: {detection.x_max}")
-                        print(f"y_max: {detection.y_max}")
-                        print(f"confidence: {detection.confidence}")
-                        print(f"class_name: {detection.class_name!r}")
                         
                         standard_frame = camera_1_return_value.data
                         image = Image.open(BytesIO(standard_frame))
@@ -307,16 +295,13 @@ async def main():
                         
                         # Get dimensions of cropped image
                         crop_width, crop_height = cropped_image.size
-                        print(f"Cropped image size: {crop_width}x{crop_height}")
                         
-                        # Resize if either dimension is less than 50 pixels
                         if crop_width < 50 or crop_height < 50:
                             # Calculate scaling factor to make smallest dimension 50 pixels
                             scale = max(50 / crop_width, 50 / crop_height)
                             new_width = int(crop_width * scale)
                             new_height = int(crop_height * scale)
                             cropped_image = cropped_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                            print(f"Resized image to: {new_width}x{new_height}")
                         
                         # Enhance the image for better OCR
                         enhancer = ImageEnhance.Contrast(cropped_image)
@@ -341,7 +326,6 @@ async def main():
                         # Save with high quality
                         cropped_image.save(fname.replace("og_img","crp_img"), 'PNG', quality=100)
                         # rv_cropped_image.save(fname.replace("og_img","only_car"),'PNG',quality=100)
-                        print("Image saved, attempting OCR...")
 
                         # Uncomment when needed
                         license_plate_text = await ocr(fname.replace("og_img","crp_img"))
